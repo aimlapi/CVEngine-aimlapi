@@ -36,7 +36,7 @@
 4. **Prove it on your hosts.** A Sentinel reproduces each match with a read-only check and keeps the evidence.
 5. **Cut the noise.** AI reviews the evidence, so what is real rises and likely false positives sink.
 
-**Bring your own AI:** Anthropic, OpenAI or OpenRouter on your own key, or fully local with Ollama, LM Studio or vLLM. It is off until you switch it on, and it never closes a finding a check proved. Without a model, cvENGINE still discovers, scans, matches and validates.
+**Bring your own AI:** Anthropic, OpenAI, OpenRouter or AI/ML API on your own key, or fully local with Ollama, LM Studio or vLLM. It is off until you switch it on, and it never closes a finding a check proved. Without a model, cvENGINE still discovers, scans, matches and validates.
 
 <details>
 <summary><b>How it works, exactly</b></summary>
@@ -117,7 +117,7 @@ cvENGINE runs the best open-source security tools. The scanner image pins each t
 | | [Tailscale](https://github.com/tailscale/tailscale) | Optional: join a tailnet, import and scan its devices, and check its configuration ([Tailscale](docs/TAILSCALE.md)) |
 | | [runZero](https://www.runzero.com) | Optional: a scheduled sync of runZero's asset data with your own token ([Configuration](docs/CONFIGURATION.md#runzero)) |
 | | bbot's keyed sources | Optional: Shodan, Censys, VirusTotal, SecurityTrails, GitHub, Chaos and more, with your own API keys ([Configuration](docs/CONFIGURATION.md#api-keys)) |
-| **AI (bring your own, off until you choose)** | [Anthropic](https://www.anthropic.com), [OpenAI](https://openai.com), [OpenRouter](https://openrouter.ai), [Ollama](https://github.com/ollama/ollama), [LM Studio](https://lmstudio.ai), [vLLM](https://github.com/vllm-project/vllm) | Finding triage, Nuclei targeting and the [AI reviewer](docs/AI-REVIEWER.md) in its own container. Without a model cvENGINE still discovers, scans and matches |
+| **AI (bring your own, off until you choose)** | [Anthropic](https://www.anthropic.com), [OpenAI](https://openai.com), [OpenRouter](https://openrouter.ai), [AI/ML API](https://aimlapi.com), [Ollama](https://github.com/ollama/ollama), [LM Studio](https://lmstudio.ai), [vLLM](https://github.com/vllm-project/vllm) | Finding triage, Nuclei targeting and the [AI reviewer](docs/AI-REVIEWER.md) in its own container. Without a model cvENGINE still discovers, scans and matches |
 | | [Model Context Protocol](https://modelcontextprotocol.io) | An MCP server and a REST API for your own agents ([Agent API](docs/AGENT-API.md)) |
 
 ## Install in minutes

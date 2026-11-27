@@ -29,7 +29,8 @@ from cvengine_reviewer import guard, profiles
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BASES = {'openai': 'https://api.openai.com/v1', 'openrouter': 'https://openrouter.ai/api/v1',
+AIMLAPI_HOST = 'api.aimlapi.com'
+DEFAULT_BASES = {'openai': 'https://api.openai.com/v1', 'openrouter': 'https://openrouter.ai/api/v1', 'aimlapi': 'https://api.aimlapi.com/v1',
                  'lmstudio': 'http://host.docker.internal:1234/v1', 'vllm': 'http://host.docker.internal:8000/v1',
                  'ollama': 'http://host.docker.internal:11434'}
 # Claude models that take server-side refusal fallbacks on the Claude API (``fallbacks: "default"``): a declined review is re-run on the
@@ -112,11 +113,11 @@ def _anthropic(provider, system, user, schema, max_tokens, effort):
     return text, usage, message.model or model
 
 
-def _post(url, headers, body, timeout):
+def _post(url, headers, body, timeout, urlopen=None):
     request = urllib.request.Request(url, data=json.dumps(body).encode(), method='POST',
                                      headers={'Content-Type': 'application/json', **headers})
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - the URL is the provider the admin configured
+        with (urlopen or urllib.request.urlopen)(request, timeout=timeout) as response:  # noqa: S310 - the URL is the provider the admin configured
             raw = response.read(MAX_REPLY_BYTES + 1)
     except urllib.error.HTTPError as exc:
         category = 'auth' if exc.code in (401, 403) else 'rate_limit' if exc.code == 429 else 'http'
@@ -131,24 +132,32 @@ def _post(url, headers, body, timeout):
         raise ModelError('the provider sent something that is not JSON', 'shape') from None
 
 
+def _post_keeping_key_on_host(url, headers, body, timeout):
+    return _post(url, headers, body, timeout, urlopen=urllib.request.build_opener(_KeepKeyOnHost()).open)
+
+
 def _openai_compatible(provider, system, user, schema, max_tokens):
     name = provider.get('provider') or 'openai'
     base = (provider.get('base_url') or DEFAULT_BASES.get(name, DEFAULT_BASES['openai'])).rstrip('/')
     if base.endswith('/chat/completions'):
         base = base[:-len('/chat/completions')]
     headers = {'Authorization': f"Bearer {provider['api_key']}"} if provider.get('api_key') else {}
+    post = _post
+    if name == 'aimlapi':  # the AI/ML API key goes only to its own host, and never follows a redirect off it
+        headers = headers if _is_aimlapi(base) else {}
+        post = _post_keeping_key_on_host
     body = {'model': provider.get('model') or '', 'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}],
             'response_format': {'type': 'json_schema', 'json_schema': {'name': 'answer', 'strict': True, 'schema': guard.for_provider(schema)}}}
     body['max_completion_tokens' if name == 'openai' else 'max_tokens'] = max_tokens
     body.update(pinned(name))
     timeout = float(provider.get('timeout') or 120)
     try:
-        data = _post(f'{base}/chat/completions', headers, body, timeout)
+        data = post(f'{base}/chat/completions', headers, body, timeout)
     except ModelError as exc:
         if exc.category != 'http':
             raise
         body['response_format'] = {'type': 'json_object'}  # a server without schema support: ask for JSON, parse_reply checks the shape
-        data = _post(f'{base}/chat/completions', headers, body, timeout)
+        data = post(f'{base}/chat/completions', headers, body, timeout)
     try:
         choice = data['choices'][0]
         text = choice['message']['content']
@@ -292,12 +301,23 @@ class _HTTPSHandler(urllib.request.HTTPSHandler):
         return self.do_open(_connection(http.client.HTTPSConnection, self._connect_timeout), req, context=self._context)
 
 
+class _KeepKeyOnHost(urllib.request.HTTPRedirectHandler):
+    """Follows a redirect like urllib does, but drops the key (Authorization) when it leads off the host the request was for."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and (urllib.parse.urlsplit(newurl).hostname or '').lower() != (urllib.parse.urlsplit(req.full_url).hostname or '').lower():
+            new.headers = {key: value for key, value in new.headers.items() if key.lower() != 'authorization'}
+        return new
+
+
 def _http(name, url, headers, body, timeout, connect_timeout, limit):
     """One request (POST when ``body`` is given, else GET); the parsed JSON answer. Raises ModelError with the server's categories."""
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(url, data=data, method='POST' if data is not None else 'GET',
                                      headers={'Accept': 'application/json', **({'Content-Type': 'application/json'} if data else {}), **headers})
-    opener = urllib.request.build_opener(_HTTPHandler(connect_timeout), _HTTPSHandler(connect_timeout))
+    handlers = (_HTTPHandler(connect_timeout), _HTTPSHandler(connect_timeout))
+    # AI/ML API: its key never follows a redirect to another host (the other providers keep urllib's own behaviour)
+    opener = urllib.request.build_opener(*handlers, *((_KeepKeyOnHost(),) if name == 'aimlapi' else ()))
     try:
         with opener.open(request, timeout=timeout) as response:  # noqa: S310 - the provider the admin configured
             raw = response.read(limit + 1)
@@ -354,6 +374,11 @@ def _epoch(value):
         return 0
 
 
+def _is_aimlapi(url):
+    parts = urllib.parse.urlsplit(url)
+    return parts.scheme == 'https' and (parts.hostname or '').lower() == AIMLAPI_HOST
+
+
 def _openai_base(target):
     base = (target.base_url or target.profile.default_base).rstrip('/')
     return base[:-len('/chat/completions')] if base.endswith('/chat/completions') else base
@@ -379,6 +404,8 @@ def _headers(target):
     if target.profile.transport == 'ollama':
         return {}
     headers = {'Authorization': f'Bearer {target.api_key}'} if target.api_key else {}
+    if target.name == 'aimlapi':  # the AI/ML API key goes only to its own host; any other Base URL is sent no key
+        return headers if _is_aimlapi(_openai_base(target)) else {}
     return {**headers, **OPENROUTER_HEADERS} if target.name == 'openrouter' else headers
 
 
@@ -397,6 +424,10 @@ def list_models(target):
             models = [{'id': m['id'], 'created': _epoch(m.get('created'))} for m in data.get('data', []) if isinstance(m, dict) and m.get('id')]
             if target.name == 'lmstudio':  # LM Studio lists the embedding models it holds beside the chat ones
                 models = [m for m in models if 'embed' not in m['id'].lower()]
+            if target.name == 'aimlapi':  # AI/ML API lists every kind of model; only the chat/completions ones can answer, newest by release
+                rows = [m for m in data.get('data', []) if isinstance(m, dict) and m.get('id') and m.get('type') == 'openai/chat-completions']
+                models = list({m['id']: {'id': m['id'], 'created': _epoch(m.get('created') or (m.get('info') or {}).get('releasedAt'))}
+                               for m in rows}.values())
     except ModelError as exc:
         raise ModelError(f'{target.name} model list failed', 'provider_error', http_status=exc.http_status) from None
     except (AttributeError, TypeError) as exc:

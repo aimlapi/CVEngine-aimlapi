@@ -226,6 +226,7 @@ const sections = {
       vllm: "required, e.g. http://100.64.0.5:8000/v1 (vLLM) or http://localhost:8080/v1 (llama.cpp's llama-server, LiteLLM or any OpenAI-compatible server); the API key is only needed if the server asks for one",
       lmstudio: "required, e.g. http://100.64.0.5:1234/v1, or http://localhost:1234/v1 if it runs on this server (the API key is only needed when you turned on authentication in LM Studio)",
       openrouter: "optional, defaults to https://openrouter.ai/api/v1",
+      aimlapi: "optional, defaults to https://api.aimlapi.com/v1; the key is only sent to api.aimlapi.com",
       openai: "optional, empty uses OpenAI (https://api.openai.com/v1); set it for a LiteLLM proxy or another OpenAI-compatible service, which then gets the key you type here",
       anthropic: "optional, empty uses Anthropic (https://api.anthropic.com); set it for a gateway or proxy, which then gets the key you type here",
     };

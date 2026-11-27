@@ -2,6 +2,11 @@
 
 cvENGINE is a fork of [reNgine](https://github.com/yogeshojha/rengine) 2.x. The history of reNgine up to the fork is in [its changelog](https://github.com/yogeshojha/rengine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Added
+- **AI/ML API as an AI provider.** Settings, AI model and the setup page list AI/ML API (`https://api.aimlapi.com/v1`, OpenAI-compatible) beside OpenRouter: one key for many vendors' models. Its model list holds only the models it serves on `chat/completions`, and with no model chosen the newest cheapest of them is used (`openai/gpt-5.4-nano` when the list cannot be read). The key is only sent to `https://api.aimlapi.com`: another Base URL is sent no key, and a redirect to another host drops it, on the server and in the reviewer container. A bare `sk-` key is still never guessed onto it. Migration `dashboard/0038` adds the choice; the stored provider and the field's default are unchanged.
+
 ## v1.4.2 (2026-11-20)
 
 ### Added

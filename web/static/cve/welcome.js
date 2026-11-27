@@ -12,7 +12,7 @@ const dots = document.getElementById('dots');
 const strip = document.getElementById('disc');
 const STEPS = ['seed', 'plan', 'scanners', 'extras', 'build'];
 const TITLES = ['Your organization', 'Where it runs', 'What runs', 'Optional extras', 'Getting ready'];
-const NAMES = { anthropic: 'Anthropic', openai: 'OpenAI', openrouter: 'OpenRouter' };
+const NAMES = { anthropic: 'Anthropic', openai: 'OpenAI', openrouter: 'OpenRouter', aimlapi: 'AI/ML API' };
 
 const el = (tag, cls, text, attrs = {}) => {
   const n = document.createElement(tag);

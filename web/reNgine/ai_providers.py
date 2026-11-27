@@ -1,5 +1,5 @@
 """Model-agnostic AI layer: one ``complete(system, user)`` interface over
-Anthropic, OpenAI, OpenRouter, Ollama, vLLM and LM Studio, plus CVE-match confirmation built on it.
+Anthropic, OpenAI, OpenRouter, AI/ML API, Ollama, vLLM and LM Studio, plus CVE-match confirmation built on it.
 
 Plain HTTP via ``requests`` (no vendor SDKs) so providers are swappable and the
 module imports without Django. Keys are passed in by the caller (read from the
@@ -305,7 +305,7 @@ def complete_with_headroom(provider, system, user, allow_retry=None):
 ANTHROPIC_URL = PROFILES['anthropic'].default_base
 ANTHROPIC_VERSION = '2023-06-01'
 OPENAI_URL = PROFILES['openai'].default_base + '/chat/completions'
-# Models used when none is chosen. Anthropic and OpenAI get the newest cheapest model: resolved from the
+# Models used when none is chosen. Anthropic, OpenAI and AI/ML API get the newest cheapest model: resolved from the
 # provider's own model list (see pick_cheapest_newest), with these as the fallback when the list cannot be read.
 # OpenRouter, Ollama, vLLM and LM Studio serve whatever the operator picked or hosts, so there is no default for them.
 DEFAULT_MODELS = {name: profile.default_model for name, profile in PROFILES.items()}
@@ -872,6 +872,49 @@ class OpenRouterProvider(OpenAIProvider):
 		return {**super()._headers(), 'HTTP-Referer': 'https://github.com/hevnsnt/CVEngine', 'X-Title': 'CVEngine'}
 
 
+AIMLAPI_HOST = 'api.aimlapi.com'
+
+
+def _aimlapi_price(model):
+	"""USD per million prompt tokens from an AI/ML API catalog row (``pricing.units``: the user's own input tokens), or None."""
+	units = (model.get('pricing') or {}).get('units') if isinstance(model.get('pricing'), dict) else None
+	for unit in units if isinstance(units, list) else ():
+		if isinstance(unit, dict) and unit.get('origin') == 'provided' and unit.get('phase') == 'inference' and unit.get('name') == 'token':
+			try:
+				return float(unit['price']) * 1_000_000 / float(unit.get('per') or 1_000_000)
+			except (KeyError, TypeError, ValueError, ZeroDivisionError):
+				return None
+	return None
+
+
+class AIMLAPIProvider(OpenAIProvider):
+	"""AI/ML API (https://aimlapi.com): an OpenAI-compatible API (chat/completions, models) in front of many vendors' models.
+
+	The key goes only to its own host, api.aimlapi.com: a Base URL that points anywhere else is sent no key (use the vLLM provider for
+	another OpenAI-compatible server), and guarded_request drops it on a redirect to another host. Its model list holds every kind of model
+	(images, video, speech, embeddings); only the ones served on chat/completions are listed."""
+	name = 'aimlapi'
+	default_base = PROFILES['aimlapi'].default_base
+
+	def _headers(self):
+		from urllib.parse import urlsplit
+		host = (urlsplit(self._base()).hostname or '').lower()
+		return super()._headers() if urlsplit(self._base()).scheme == 'https' and host == AIMLAPI_HOST else {}
+
+	def list_models(self):
+		data = self._get(f'{self._base()}/models', self._headers())
+		models, seen = [], set()
+		for m in data.get('data', []) if isinstance(data, dict) else ():
+			if not isinstance(m, dict) or m.get('type') != 'openai/chat-completions':
+				continue
+			if not isinstance(m.get('id'), str) or not m['id'] or m['id'] in seen:
+				continue
+			seen.add(m['id'])
+			released = (m.get('info') or {}).get('releasedAt') if isinstance(m.get('info'), dict) else None
+			models.append({'id': m['id'], 'created': _epoch(m.get('created') or released), 'price': _aimlapi_price(m)})
+		return sorted(models, key=lambda m: (-m['created'], m['id']))
+
+
 class VLLMProvider(OpenAIProvider):
 	"""A vLLM server's OpenAI-compatible API, e.g. http://vllm:8000/v1. The key is optional (--api-key)."""
 	name = 'vllm'
@@ -979,7 +1022,7 @@ class OllamaProvider(AIProvider):
 		return _ollama_text(data)
 
 
-_CLASSES = {cls.name: cls for cls in (AnthropicProvider, OpenAIProvider, OpenRouterProvider, OllamaProvider, VLLMProvider, LMStudioProvider)}
+_CLASSES = {cls.name: cls for cls in (AnthropicProvider, OpenAIProvider, OpenRouterProvider, AIMLAPIProvider, OllamaProvider, VLLMProvider, LMStudioProvider)}
 PROVIDERS = {name: _CLASSES[name] for name in PROFILES}  # the ids come from the profile table (reNgine.ai_profiles); a profile without a class fails here
 KEYLESS = tuple(name for name, profile in PROFILES.items() if not profile.needs_key)  # a key is optional (vLLM, LM Studio) or unused (Ollama)
 SERVER_URL_PROVIDERS = tuple(name for name, profile in PROFILES.items() if profile.needs_url)  # you run the server, so there is no default address

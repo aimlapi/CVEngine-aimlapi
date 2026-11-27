@@ -16,6 +16,7 @@ const DEFAULTS = {
   anthropic: {request_timeout: 120, connect_timeout: 10, max_tokens: 2048, triage_max_tokens: null, structured: false, structured_possible: false, reasoning_sent: true},
   openai: {request_timeout: 120, connect_timeout: 10, max_tokens: null, triage_max_tokens: null, structured: false, structured_possible: true, reasoning_sent: true},
   openrouter: {request_timeout: 120, connect_timeout: 10, max_tokens: null, triage_max_tokens: null, structured: false, structured_possible: true, reasoning_sent: false},
+  aimlapi: {request_timeout: 120, connect_timeout: 10, max_tokens: null, triage_max_tokens: null, structured: false, structured_possible: true, reasoning_sent: false},
   ollama: {request_timeout: 120, connect_timeout: 10, max_tokens: 2048, triage_max_tokens: 400, structured: true, structured_possible: true, reasoning_sent: true},
   lmstudio: {request_timeout: 300, connect_timeout: 10, max_tokens: 2048, triage_max_tokens: 400, structured: true, structured_possible: true, reasoning_sent: false},
   vllm: {request_timeout: 120, connect_timeout: 10, max_tokens: 2048, triage_max_tokens: 400, structured: true, structured_possible: true, reasoning_sent: false},

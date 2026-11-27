@@ -180,6 +180,14 @@ PROFILES = {p.id: p for p in (
 		# UNVERIFIED: OpenRouter has its own `reasoning` object; it is not used yet, so a model behind it gets nothing
 		reasoning_detect=_no_reasoning, reasoning_field=''),
 	ProviderProfile(
+		# AI/ML API (aimlapi.com): one OpenAI-compatible API in front of many vendors' models. The key is only ever sent to its own host
+		# (AIMLAPIProvider). Without a chosen model the newest cheapest one in its chat list is used, with this one as the fallback.
+		id='aimlapi', label='AI/ML API', transport='openai_chat', default_base='https://api.aimlapi.com/v1', default_model='openai/gpt-5.4-nano',
+		needs_key=True, needs_url=False, port=0, token_param='max_tokens', reply_cap=0, reply_cap_by_stage=False,
+		temperature_ok=False, seed_ok=False, structured=('json_schema', 'json_object', 'none'), structured_default=False,
+		# UNVERIFIED: the models behind it take different reasoning fields; none is sent, as for OpenRouter
+		reasoning_detect=_no_reasoning, reasoning_field=''),
+	ProviderProfile(
 		id='ollama', label='Ollama', transport='ollama', default_base='', default_model='',
 		needs_key=False, needs_url=True, port=11434, token_param='num_predict', reply_cap=DEFAULT_REPLY_CAP, reply_cap_by_stage=True,
 		temperature_ok=True, seed_ok=True, structured=('json_schema', 'json', 'none'), structured_default=True,

@@ -6,13 +6,14 @@
 // `provider_defaults` (what each provider sends when nothing is set), `applies_to` (settings only some providers use) and `choices`.
 
 export const GROUPS = [
-  ["Hosted", ["anthropic", "openai", "openrouter"]],
+  ["Hosted", ["anthropic", "openai", "openrouter", "aimlapi"]],
   ["Your own server", ["ollama", "lmstudio", "vllm"]],
 ];
 export const LABELS = {
   anthropic: "Anthropic",
   openai: "OpenAI",
   openrouter: "OpenRouter",
+  aimlapi: "AI/ML API",
   ollama: "Ollama",
   lmstudio: "LM Studio",
   vllm: "vLLM, llama.cpp or another OpenAI-compatible server",

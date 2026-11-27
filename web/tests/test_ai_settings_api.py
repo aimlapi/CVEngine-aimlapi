@@ -71,9 +71,9 @@ class AiRequestSettingsApiTests(TestCase):
 	def test_the_defaults_say_which_providers_can_be_sent_a_reasoning_field(self):
 		defaults = send(self.c, 'GET', 'ai')[1]['provider_defaults']
 		self.assertEqual({name: d['reasoning_sent'] for name, d in defaults.items()},
-			{'anthropic': True, 'openai': True, 'openrouter': False, 'ollama': True, 'vllm': False, 'lmstudio': False})
+			{'anthropic': True, 'openai': True, 'openrouter': False, 'aimlapi': False, 'ollama': True, 'vllm': False, 'lmstudio': False})
 		self.assertEqual({name: d['structured'] for name, d in defaults.items()},
-			{'anthropic': False, 'openai': False, 'openrouter': False, 'ollama': True, 'vllm': True, 'lmstudio': True})
+			{'anthropic': False, 'openai': False, 'openrouter': False, 'aimlapi': False, 'ollama': True, 'vllm': True, 'lmstudio': True})
 
 	def test_the_environment_in_force_is_listed_and_the_effective_value_follows_it(self):
 		with mock.patch.dict('os.environ', {'CVENGINE_AI_TIMEOUT': '400', 'CVENGINE_AI_REASONING': 'low', 'CVENGINE_OLLAMA_NUM_CTX': 'big'}):

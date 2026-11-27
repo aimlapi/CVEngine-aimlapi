@@ -12,7 +12,7 @@ no model call for them.
 | **Finding review** | `claude-sonnet-5-5` | Continuously, in small batches, up to a daily cap | Reads every open finding once: Fire, Smoke and Ice CVE matches, scanner findings (nuclei, database exposure, bbot) and hygiene findings. It judges each one false positive or true finding (open, in progress, fixed or accepted risk), and closes the false positives with a closing note that says why. A finding is read again only when its host or its evidence changes. |
 | **Operations check** | `claude-haiku-5-5` | Four times a day (by default at 03:00, 09:00, 15:00 and 21:00 UTC); it replaces the three-hourly AI assessment review of 1.3, which is retired | Reads the work queue, Sentinel load and errors, the share of scanning done locally, nuclei template freshness, AI-written templates waiting for review, failed scans and the server's own problems. It writes the admin an alert that diagnoses each problem and says what to do. It may also start a fix from a short fixed list: give idle Sentinels work, or fetch new nuclei templates. |
 
-With another provider (OpenAI, OpenRouter, vLLM, LM Studio, Ollama), both jobs use the provider's configured model unless a model is named for the
+With another provider (OpenAI, OpenRouter, AI/ML API, vLLM, LM Studio, Ollama), both jobs use the provider's configured model unless a model is named for the
 job in **Settings > AI model**, in the table **Which model does which job**.
 
 ## Why it exists
@@ -138,7 +138,7 @@ when it lands.
    day's budget in a day.
 3. **The container asks the model.** It fences each untrusted part between nonce markers (`guard.fence`), adds the trusted facts (enums, counts, dates and flags, with any marker token defused) and puts the wording of cvENGINE's own results that can quote a host or a template (the heat reason, hard-evidence lines, check labels: a matcher name, a product name) in a second fenced block, `COMPUTED_TEXT`, as data,
    and makes the request the server used to make (`cvengine_reviewer.llm.complete`, ported from the server's provider layer): the same
-   endpoints and bodies for Anthropic, the OpenAI-compatible servers (OpenAI, OpenRouter, vLLM, LM Studio) and Ollama, the same reply
+   endpoints and bodies for Anthropic, the OpenAI-compatible servers (OpenAI, OpenRouter, AI/ML API, vLLM, LM Studio) and Ollama, the same reply
    limits, structured output with its step-down when a server refuses it, the reasoning setting, Ollama's context window and keep-alive, and
    the same error categories. The provider settings stay where they were (Settings > AI model); the server resolves them, the `CVENGINE_AI_*`
    variables of its `.env` included, and hands them over in the job block of `GET config`.

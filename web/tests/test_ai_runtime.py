@@ -12,7 +12,7 @@ from reNgine.ai_profiles import AIRuntime
 OPENAI_OK = {'choices': [{'message': {'content': 'ok'}, 'finish_reason': 'stop'}]}
 ANTHROPIC_OK = {'content': [{'type': 'text', 'text': 'ok'}], 'stop_reason': 'end_turn'}
 OLLAMA_OK = {'message': {'content': 'ok'}}
-REPLIES = {'anthropic': ANTHROPIC_OK, 'openai': OPENAI_OK, 'openrouter': OPENAI_OK, 'ollama': OLLAMA_OK, 'vllm': OPENAI_OK, 'lmstudio': OPENAI_OK}
+REPLIES = {'anthropic': ANTHROPIC_OK, 'openai': OPENAI_OK, 'openrouter': OPENAI_OK, 'aimlapi': OPENAI_OK, 'ollama': OLLAMA_OK, 'vllm': OPENAI_OK, 'lmstudio': OPENAI_OK}
 BASES = {'ollama': 'http://h:11434', 'vllm': 'http://h:8000/v1', 'lmstudio': 'http://h:1234/v1'}
 ENV_NAMES = ('CVENGINE_AI_TIMEOUT', 'CVENGINE_AI_CONNECT_TIMEOUT', 'CVENGINE_AI_MAX_TOKENS', 'CVENGINE_AI_STRUCTURED', 'CVENGINE_AI_REASONING',
 	'CVENGINE_OLLAMA_NUM_CTX')
@@ -39,7 +39,7 @@ def send(name, runtime=None, env=None, model='m', options=None, triage=False):
 	"""(timeout, json body) of the request a provider makes with ``runtime`` and the environment ``env`` (every AI variable cleared first)."""
 	environment = {**{k: '' for k in ENV_NAMES}, **(env or {})}
 	with mock.patch.dict('os.environ', environment), mock.patch('requests.post', return_value=Reply(REPLIES[name])) as post:
-		p = ai.get_provider(name, model=model, api_key='k' if name in ('anthropic', 'openai', 'openrouter') else None,
+		p = ai.get_provider(name, model=model, api_key='k' if name in ('anthropic', 'openai', 'openrouter', 'aimlapi') else None,
 			base_url=BASES.get(name), runtime=runtime)
 		with ai.request_options(**(options or {})):
 			p.complete('s', 'u')
@@ -107,6 +107,7 @@ class NothingSetTests(unittest.TestCase):
 			'anthropic': ((10, 120), {'model': 'm', 'max_tokens': 2048, 'system': 's', 'messages': [{'role': 'user', 'content': 'u'}]}),
 			'openai': ((10, 120), {'model': 'm', 'messages': msgs}),
 			'openrouter': ((10, 120), {'model': 'm', 'messages': msgs}),
+			'aimlapi': ((10, 120), {'model': 'm', 'messages': msgs}),
 			'vllm': ((10, 120), {'model': 'm', 'messages': msgs, 'max_tokens': 2048}),
 			'lmstudio': ((10, 300), {'model': 'm', 'messages': msgs, 'max_tokens': 2048}),
 			'ollama': ((10, 120), {'model': 'm', 'stream': False, 'messages': msgs, 'options': {'num_predict': 2048}}),

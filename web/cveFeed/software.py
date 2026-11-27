@@ -253,6 +253,7 @@ AI_PROVIDERS = [
     source('Anthropic', 'https://www.anthropic.com', 'AI triage, template drafting, validation and the reviewer, through its API', 'an API key you add', used_by='reNgine/ai_profiles.py'),
     source('OpenAI', 'https://openai.com', 'The same, through its API', 'an API key you add', used_by='reNgine/ai_profiles.py'),
     source('OpenRouter', 'https://openrouter.ai', 'The same, through its API', 'an API key you add', used_by='reNgine/ai_profiles.py'),
+    source('AI/ML API', 'https://aimlapi.com', 'The same, through its API', 'an API key you add', used_by='reNgine/ai_profiles.py'),
     source('Ollama, vLLM and LM Studio', 'https://github.com/ollama/ollama', 'Self-hosted servers cvENGINE calls over HTTP (Ollama MIT, vLLM Apache-2.0; no code of any of them is included)', 'a server you run', used_by='reNgine/ai_providers.py'),
     source('Model Context Protocol', 'https://modelcontextprotocol.io', 'How agents connect to cvENGINE', used_by='agentapi/mcp.py'),
 ]

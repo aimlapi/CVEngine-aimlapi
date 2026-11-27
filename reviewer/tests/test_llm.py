@@ -16,7 +16,7 @@ SCHEMA = {'type': 'object', 'additionalProperties': False, 'required': ['classif
           'properties': {'classification': {'type': 'string', 'enum': ['likely', 'needs_validation']}}}
 TRIAGE = {'temperature': 0, 'seed': 20260101, 'max_tokens': 400, 'retry_truncated': True, 'schema_name': 'triage'}
 BASES = {'ollama': 'http://192.0.2.10:11434', 'vllm': 'http://192.0.2.10:8000/v1', 'lmstudio': 'http://192.0.2.10:1234/v1'}
-KEYED = ('anthropic', 'openai', 'openrouter')
+KEYED = ('anthropic', 'openai', 'openrouter', 'aimlapi')
 
 
 def block(name, model='m', base=None, **runtime):
@@ -369,3 +369,88 @@ class HttpTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class _Redirecting(http.server.BaseHTTPRequestHandler):
+    """Answers every request with a redirect to ``server.location``, or with a model list when there is none; records the key it saw."""
+    def log_message(self, *args):
+        pass
+
+    def _go(self):
+        if self.headers.get('Content-Length'):
+            self.rfile.read(int(self.headers['Content-Length']))
+        self.server.seen.append((self.path, self.headers.get('Authorization')))
+        if self.server.location:
+            self.send_response(302)
+            self.send_header('Location', self.server.location)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
+        payload = json.dumps(answer('aimlapi')).encode()
+        self.send_response(200)
+        self.send_header('Content-Length', str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    do_GET = do_POST = _go
+
+
+class AIMLAPITests(unittest.TestCase):
+    """AI/ML API: its key goes only to https://api.aimlapi.com, also after a redirect, and its list holds only its chat models."""
+    CATALOG = {'data': [{'id': 'openai/gpt-5.4-nano', 'type': 'openai/chat-completions', 'info': {'releasedAt': '2026-03-05'}},
+                        {'id': 'anthropic/claude-haiku-5.5', 'type': 'openai/chat-completions', 'info': {'releasedAt': '2026-10-07'}},
+                        {'id': 'anthropic/claude-haiku-5.5', 'type': 'anthropic/messages'},
+                        {'id': 'flux/schnell', 'type': 'openai/images-generations', 'info': {'releasedAt': '2026-11-01'}}]}
+
+    def setUp(self):
+        llm._STRUCTURED.clear()
+        llm._RESOLVED.clear()
+
+    def keyed(self, **kw):
+        return {**block('aimlapi', **kw), 'api_key': 'test-key'}
+
+    def sent(self, **kw):
+        recorder = Recorder(answer('aimlapi'))
+        with mock.patch.object(llm, '_http', recorder):
+            llm.complete(self.keyed(**kw), 'system', 'user', None, None, None)
+        return recorder.requests[0]
+
+    def start(self, location=None):
+        server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), _Redirecting)
+        server.seen, server.location = [], location
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return f'http://127.0.0.1:{server.server_address[1]}', server
+
+    def test_it_goes_to_its_own_address_with_the_key_as_a_bearer_header(self):
+        request = self.sent()
+        self.assertEqual(request['url'], 'https://api.aimlapi.com/v1/chat/completions')
+        self.assertEqual(request['headers'], {'Authorization': 'Bearer test-key'})
+
+    def test_no_other_host_is_sent_the_key(self):
+        for base in ('https://api.aimlapi.com.evil.example/v1', 'http://api.aimlapi.com/v1', 'https://evil.example/v1',
+                     'https://api.aimlapi.com@evil.example/v1'):
+            self.assertEqual(self.sent(base=base)['headers'], {}, base)
+        self.assertFalse(llm._is_aimlapi('https://aimlapi.com/v1'))
+
+    def test_the_list_holds_only_chat_models_and_the_newest_cheapest_is_chosen(self):
+        recorder = Recorder(self.CATALOG)
+        with mock.patch.object(llm, '_http', recorder):
+            target = llm.Target(self.keyed(model=''))
+            self.assertEqual([m['id'] for m in llm.list_models(target)], ['anthropic/claude-haiku-5.5', 'openai/gpt-5.4-nano'])
+            self.assertEqual(llm.resolve_model(target), 'anthropic/claude-haiku-5.5')
+        self.assertEqual(recorder.requests[0]['url'], 'https://api.aimlapi.com/v1/models')
+
+    def test_a_redirect_to_another_host_drops_the_key(self):
+        other, landed = self.start()
+        first, _ = self.start(location=f'{other.replace("127.0.0.1", "localhost")}/v1/chat/completions')
+        with mock.patch.dict('os.environ', {'NO_PROXY': '127.0.0.1,localhost', 'no_proxy': '127.0.0.1,localhost'}):
+            llm._http('aimlapi', f'{first}/v1/chat/completions', {'Authorization': 'Bearer test-key'}, {'model': 'm'}, 5, 5, 100000)
+            llm._post_keeping_key_on_host(f'{first}/v1/chat/completions', {'Authorization': 'Bearer test-key'}, {'model': 'm'}, 5)
+        self.assertEqual(landed.seen, [('/v1/chat/completions', None), ('/v1/chat/completions', None)])
+        # a hop on the same host keeps it
+        first, _ = self.start(location=f'{other}/v1/chat/completions')
+        with mock.patch.dict('os.environ', {'NO_PROXY': '127.0.0.1', 'no_proxy': '127.0.0.1'}):
+            llm._http('aimlapi', f'{first}/v1/chat/completions', {'Authorization': 'Bearer test-key'}, {'model': 'm'}, 5, 5, 100000)
+        self.assertEqual(landed.seen[-1], ('/v1/chat/completions', 'Bearer test-key'))

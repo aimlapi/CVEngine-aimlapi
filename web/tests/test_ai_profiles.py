@@ -33,12 +33,12 @@ class Reply:
 
 
 def provider(name, model='m', base=None):
-	keyed = name in ('anthropic', 'openai', 'openrouter')
+	keyed = name in ('anthropic', 'openai', 'openrouter', 'aimlapi')
 	return ai.get_provider(name, model=model, api_key='k' if keyed else None, base_url=base)
 
 
 BASES = {'ollama': 'http://h:11434', 'vllm': 'http://h:8000/v1', 'lmstudio': 'http://h:1234/v1'}
-REPLIES = {'anthropic': ANTHROPIC_OK, 'openai': OPENAI_OK, 'openrouter': OPENAI_OK, 'ollama': OLLAMA_OK, 'vllm': OPENAI_OK, 'lmstudio': OPENAI_OK}
+REPLIES = {'anthropic': ANTHROPIC_OK, 'openai': OPENAI_OK, 'openrouter': OPENAI_OK, 'aimlapi': OPENAI_OK, 'ollama': OLLAMA_OK, 'vllm': OPENAI_OK, 'lmstudio': OPENAI_OK}
 
 
 def sent(name, call='complete', env=None, options=None, model='m', base=None):
@@ -140,14 +140,14 @@ class RequestBodyTests(unittest.TestCase):
 class ProfileTableTests(SimpleTestCase):
 	def test_the_provider_lists_derive_from_the_table_and_are_what_they_were(self):
 		from dashboard.models import AIProviderSettings
-		ids = ['anthropic', 'openai', 'openrouter', 'ollama', 'vllm', 'lmstudio']  # the stored ids: no provider is added by the table
+		ids = ['anthropic', 'openai', 'openrouter', 'aimlapi', 'ollama', 'vllm', 'lmstudio']  # the stored ids; AI/ML API is the one added since
 		self.assertEqual(list(profiles.PROFILES), ids)
 		self.assertEqual(list(ai.PROVIDERS), ids)
 		self.assertEqual([p for p, _ in AIProviderSettings.PROVIDER_CHOICES], ids)
 		self.assertEqual(AIProviderSettings.PROVIDER_CHOICES, [('anthropic', 'Anthropic'), ('openai', 'OpenAI'), ('openrouter', 'OpenRouter'),
-			('ollama', 'Ollama'), ('vllm', 'vLLM'), ('lmstudio', 'LM Studio')])
+			('aimlapi', 'AI/ML API'), ('ollama', 'Ollama'), ('vllm', 'vLLM'), ('lmstudio', 'LM Studio')])
 		self.assertEqual(list(ai.DEFAULT_MODELS), ids)
-		self.assertEqual(ai.DEFAULT_MODELS, {'anthropic': 'claude-haiku-5-5', 'openai': 'gpt-5.4-nano', 'openrouter': '', 'ollama': '', 'vllm': '', 'lmstudio': ''})
+		self.assertEqual(ai.DEFAULT_MODELS, {'anthropic': 'claude-haiku-5-5', 'openai': 'gpt-5.4-nano', 'openrouter': '', 'aimlapi': 'openai/gpt-5.4-nano', 'ollama': '', 'vllm': '', 'lmstudio': ''})
 		self.assertEqual(ai.SELECTABLE, ('openrouter', 'ollama', 'vllm', 'lmstudio'))
 		self.assertEqual(ai.KEYLESS, ('ollama', 'vllm', 'lmstudio'))
 		self.assertEqual(ai.SERVER_URL_PROVIDERS, ('ollama', 'vllm', 'lmstudio'))
