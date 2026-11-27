@@ -53,7 +53,8 @@ class AiRequestSettingsApiTests(TestCase):
 		self.assertEqual({k: v['source'] for k, v in data['effective'].items() if k in ('request_timeout', 'max_tokens')},
 			{'request_timeout': 'default', 'max_tokens': 'default'})
 		self.assertEqual(data['effective']['request_timeout']['value'], 120)
-		self.assertEqual(data['effective']['max_tokens']['value'], 2048)
+		self.assertEqual(data['provider'], 'aimlapi')  # a fresh install starts on AI/ML API, which (like OpenRouter) is sent no reply cap
+		self.assertIsNone(data['effective']['max_tokens']['value'])
 
 	def test_the_page_is_told_the_ranges_the_choices_and_what_applies_where(self):
 		data = send(self.c, 'GET', 'ai')[1]

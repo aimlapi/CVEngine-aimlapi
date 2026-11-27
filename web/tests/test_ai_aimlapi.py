@@ -46,11 +46,16 @@ class AIMLAPIProfileTests(unittest.TestCase):
 		self.assertIsNone(ai.detect_provider('sk-0123456789abcdef'))  # a bare sk- key is never guessed onto it
 		self.assertTrue(ai.ambiguous_key('sk-0123456789abcdef'))
 
-	def test_it_is_a_choice_in_the_settings_model_and_the_stored_default_is_unchanged(self):
+	def test_it_is_a_choice_and_the_default_of_a_new_install_only(self):
+		import importlib
 		from dashboard.models import AIProviderSettings
 		field = AIProviderSettings._meta.get_field('provider')
 		self.assertIn(('aimlapi', 'AI/ML API'), field.choices)
-		self.assertEqual(field.default, 'anthropic')
+		self.assertEqual(field.default, 'aimlapi')
+		self.assertEqual(AIProviderSettings().provider, 'aimlapi')
+		# the migration only changes the column's default: it holds no data step, so a saved row keeps its provider
+		migration = importlib.import_module('dashboard.migrations.0039_ai_provider_default_aimlapi').Migration
+		self.assertEqual([type(op).__name__ for op in migration.operations], ['AlterField'])
 
 class AIMLAPIRequestTests(unittest.TestCase):
 	def setUp(self):

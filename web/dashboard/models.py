@@ -51,7 +51,8 @@ class AIProviderSettings(models.Model):
 	"""
 	PROVIDER_CHOICES = [(profile.id, profile.label) for profile in PROFILES.values()]  # the provider table (reNgine/ai_profiles.py)
 	id = models.AutoField(primary_key=True)
-	provider = models.CharField(max_length=32, choices=PROVIDER_CHOICES, default='anthropic')
+	# A new install starts on AI/ML API; a saved row keeps the provider it was saved with (a default is not written to existing rows)
+	provider = models.CharField(max_length=32, choices=PROVIDER_CHOICES, default='aimlapi')
 	model = models.CharField(max_length=200, blank=True, default='')
 	api_key = EncryptedCharField(max_length=ENCRYPTED_COLUMN_LENGTH, blank=True, default='')
 	base_url = models.CharField(max_length=500, blank=True, default='')
